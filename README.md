@@ -15,7 +15,7 @@ A sophisticated automated trading solution designed to profit from price volatil
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/gridbot-trading-system.git
+   git clone https://github.com/XroSilence/gridbot-trading-system.git
    cd gridbot-trading-system
    ```
 

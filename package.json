@@ -17,7 +17,7 @@
     "neutral",
     "automation"
   ],
-  "author": "",
+  "author": "XroSilence",
   "license": "MIT",
   "dependencies": {
     "ccxt": "^4.0.0",
