@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gridbot Trading System Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css">
+    <style>
+        body {
+            padding-top: 20px;
+            background-color: #f5f5f5;
+        }
+        .dashboard-card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .card-header {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        .grid-container {
+            height: 400px;
+            position: relative;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+        }
+        .grid-level {
+            height: 2px;
+            background-color: #ced4da;
+            position: absolute;
+            width: 100%;
+            left: 0;
+        }
+        .grid-level.active {
+            background-color: #007bff;
+            height: 3px;
+        }
+        .grid-level.buy-order {
+            border-left: 10px solid #28a745;
+        }
+        .grid-level.sell-order {
+            border-right: 10px solid #dc3545;
+        }
+        .current-price {
+            position: absolute;
+            height: 4px;
+            background-color: #fd7e14;
+            width: 100%;
+            left: 0;
+        }
+        .price-label {
+            position: absolute;
+            right: 10px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .status-active {
+            background-color: #28a745;
+        }
+        .status-inactive {
+            background-color: #dc3545;
+        }
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .profit-positive {
+            color: #28a745;
+        }
+        .profit-negative {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Gridbot Trading System Dashboard</h1>
+            <div>
+                <button id="startButton" class="btn btn-success me-2">Start Bot</button>
+                <button id="stopButton" class="btn btn-danger">Stop Bot</button>
+            </div>
+        </header>
+
+        <!-- Status Overview Row -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card dashboard-card">
+                    <div class="card-body text-center">
+                        <div class="metric-label">Bot Status</div>
+                        <div class="mt-2">
+                            <span class="status-indicator" id="botStatusIndicator"></span>
+                            <span class="metric-value" id="botStatus">Inactive</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card dashboard-card">
+                    <div class="card-body text-center">
+                        <div class="metric-label">Current Price</div>
+                        <div class="metric-value" id="currentPrice">$0.00</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card dashboard-card">
+                    <div class="card-body text-center">
+                        <div class="metric-label">Realized P&L</div>
+                        <div class="metric-value" id="realizedPnL">$0.00</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card dashboard-card">
+                    <div class="card-body text-center">
+                        <div class="metric-label">Unrealized P&L</div>
+                        <div class="metric-value" id="unrealizedPnL">$0.00</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Row -->
+        <div class="row">
+            <!-- Left Column -->
+            <div class="col-md-7">
+                <!-- Grid Visualization -->
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        Grid Visualization
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="grid-container" id="gridContainer">
+                            <!-- Grid levels will be added here dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Chart -->
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        Performance Chart
+                    </div>
+                    <div class="card-body">
+                        <canvas id="performanceChart" height="250"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="col-md-5">
+                <!-- Active Orders -->
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        Active Orders
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Side</th>
+                                        <th>Price</th>
+                                        <th>Size</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="activeOrdersTable">
+                                    <!-- Active orders will be added here dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Trades -->
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        Recent Trades
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Side</th>
+                                        <th>Price</th>
+                                        <th>Profit</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentTradesTable">
+                                    <!-- Recent trades will be added here dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Management -->
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        Risk Management
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="metric-label">Stop Loss Level</div>
+                                <div class="metric-value" id="stopLossLevel">$0.00</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="metric-label">Grid Utilization</div>
+                                <div class="metric-value" id="gridUtilization">0%</div>
+                            </div>
+                        </div>
+                        <div class="progress mt-3">
+                            <div id="gridUtilizationBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Connect to the WebSocket server
+        const socket = io();
+
+        // Charts
+        let performanceChart;
+
+        // Initialize the performance chart
+        function initializePerformanceChart() {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Realized P&L',
+                            data: [],
+                            borderColor: '#28a745',
+                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            fill: true,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Unrealized P&L',
+                            data: [],
+                            borderColor: '#17a2b8',
+                            backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                            fill: true,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Profit/Loss'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': $' + context.raw.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update the grid visualization
+        function updateGridVisualization(gridData) {
+            const container = document.getElementById('gridContainer');
+            container.innerHTML = '';
+
+            const currentPrice = gridData.currentPrice;
+            const gridLevels = gridData.gridLevels;
+
+            // Sort grid levels by price (descending)
+            gridLevels.sort((a, b) => b.price - a.price);
+
+            const containerHeight = container.clientHeight;
+            const minPrice = Math.min(...gridLevels.map(level => level.price));
+            const maxPrice = Math.max(...gridLevels.map(level => level.price));
+            const priceRange = maxPrice - minPrice;
+
+            // Add current price indicator
+            const currentPricePercent = ((currentPrice - minPrice) / priceRange) * 100;
+            const currentPriceElement = document.createElement('div');
+            currentPriceElement.className = 'current-price';
+            currentPriceElement.style.top = `${100 - currentPricePercent}%`;
+            
+            const currentPriceLabel = document.createElement('div');
+            currentPriceLabel.className = 'price-label';
+            currentPriceLabel.style.top = `${100 - currentPricePercent}%`;
+            currentPriceLabel.textContent = `$${currentPrice.toFixed(2)}`;
+            
+            container.appendChild(currentPriceElement);
+            container.appendChild(currentPriceLabel);
+
+            // Add grid levels
+            gridLevels.forEach((level, index) => {
+                const percent = ((level.price - minPrice) / priceRange) * 100;
+                const levelElement = document.createElement('div');
+                
+                let levelClass = 'grid-level';
+                if (!level.isActive) levelClass += ' active';
+                if (level.hasBuyOrder) levelClass += ' buy-order';
+                if (level.hasSellOrder) levelClass += ' sell-order';
+                
+                levelElement.className = levelClass;
+                levelElement.style.top = `${100 - percent}%`;
+                
+                const priceLabel = document.createElement('div');
+                priceLabel.className = 'price-label';
+                priceLabel.style.top = `${100 - percent}%`;
+                priceLabel.textContent = `$${level.price.toFixed(2)}`;
+                
+                container.appendChild(levelElement);
+                container.appendChild(priceLabel);
+            });
+        }
+
+        // Update active orders table
+        function updateActiveOrdersTable(orders) {
+            const tableBody = document.getElementById('activeOrdersTable');
+            tableBody.innerHTML = '';
+
+            if (orders.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 4;
+                cell.textContent = 'No active orders';
+                cell.className = 'text-center';
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+                return;
+            }
+
+            orders.forEach(order => {
+                const row = document.createElement('tr');
+                
+                const sideCell = document.createElement('td');
+                sideCell.textContent = order.side.toUpperCase();
+                sideCell.className = order.side === 'buy' ? 'text-success' : 'text-danger';
+                
+                const priceCell = document.createElement('td');
+                priceCell.textContent = `$${order.price.toFixed(2)}`;
+                
+                const sizeCell = document.createElement('td');
+                sizeCell.textContent = order.size.toFixed(8);
+                
+                const statusCell = document.createElement('td');
+                statusCell.textContent = order.status;
+                
+                row.appendChild(sideCell);
+                row.appendChild(priceCell);
+                row.appendChild(sizeCell);
+                row.appendChild(statusCell);
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Update recent trades table
+        function updateRecentTradesTable(trades) {
+            const tableBody = document.getElementById('recentTradesTable');
+            tableBody.innerHTML = '';
+
+            if (trades.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 4;
+                cell.textContent = 'No recent trades';
+                cell.className = 'text-center';
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+                return;
+            }
+
+            trades.forEach(trade => {
+                const row = document.createElement('tr');
+                
+                const timeCell = document.createElement('td');
+                const tradeTime = new Date(trade.timestamp);
+                timeCell.textContent = tradeTime.toLocaleTimeString();
+                
+                const sideCell = document.createElement('td');
+                sideCell.textContent = trade.side.toUpperCase();
+                sideCell.className = trade.side === 'buy' ? 'text-success' : 'text-danger';
+                
+                const priceCell = document.createElement('td');
+                priceCell.textContent = `$${trade.price.toFixed(2)}`;
+                
+                const profitCell = document.createElement('td');
+                profitCell.textContent = `$${trade.profit.toFixed(2)}`;
+                profitCell.className = trade.profit >= 0 ? 'profit-positive' : 'profit-negative';
+                
+                row.appendChild(timeCell);
+                row.appendChild(sideCell);
+                row.appendChild(priceCell);
+                row.appendChild(profitCell);
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Update bot status indicators
+        function updateBotStatus(status) {
+            const statusIndicator = document.getElementById('botStatusIndicator');
+            const statusText = document.getElementById('botStatus');
+            
+            if (status.isActive) {
+                statusIndicator.className = 'status-indicator status-active';
+                statusText.textContent = 'Active';
+            } else {
+                statusIndicator.className = 'status-indicator status-inactive';
+                statusText.textContent = 'Inactive';
+            }
+            
+            document.getElementById('currentPrice').textContent = `$${status.currentPrice.toFixed(2)}`;
+            
+            const realizedPnL = document.getElementById('realizedPnL');
+            realizedPnL.textContent = `$${status.realizedPnL.toFixed(2)}`;
+            realizedPnL.className = `metric-value ${status.realizedPnL >= 0 ? 'profit-positive' : 'profit-negative'}`;
+            
+            const unrealizedPnL = document.getElementById('unrealizedPnL');
+            unrealizedPnL.textContent = `$${status.unrealizedPnL.toFixed(2)}`;
+            unrealizedPnL.className = `metric-value ${status.unrealizedPnL >= 0 ? 'profit-positive' : 'profit-negative'}`;
+            
+            document.getElementById('stopLossLevel').textContent = `$${status.currentStopLossLevel.toFixed(2)}`;
+        }
+
+        // Update performance metrics
+        function updatePerformanceMetrics(metrics) {
+            if (!metrics || !metrics.historicalMetrics || metrics.historicalMetrics.length === 0) {
+                return;
+            }
+            
+            // Update grid utilization
+            const gridUtilization = document.getElementById('gridUtilization');
+            const gridUtilizationBar = document.getElementById('gridUtilizationBar');
+            
+            if (metrics.currentMetrics && typeof metrics.currentMetrics.gridUtilizationPercentage !== 'undefined') {
+                const utilizationValue = metrics.currentMetrics.gridUtilizationPercentage.toFixed(0);
+                gridUtilization.textContent = `${utilizationValue}%`;
+                gridUtilizationBar.style.width = `${utilizationValue}%`;
+            }
+            
+            // Update performance chart
+            const labels = [];
+            const realizedPnLData = [];
+            const unrealizedPnLData = [];
+            
+            metrics.historicalMetrics.forEach((metric, index) => {
+                // Add a label every 5 data points to avoid overcrowding
+                if (index % 5 === 0) {
+                    const date = new Date(metric.timestamp);
+                    labels.push(date.toLocaleTimeString());
+                } else {
+                    labels.push('');
+                }
+                
+                realizedPnLData.push(metric.realizedPnL);
+                unrealizedPnLData.push(metric.unrealizedPnL);
+            });
+            
+            performanceChart.data.labels = labels;
+            performanceChart.data.datasets[0].data = realizedPnLData;
+            performanceChart.data.datasets[1].data = unrealizedPnLData;
+            performanceChart.update();
+        }
+
+        // Socket event handlers
+        socket.on('botStatus', updateBotStatus);
+        socket.on('gridData', updateGridVisualization);
+        socket.on('performanceMetrics', updatePerformanceMetrics);
+        socket.on('tradeAnalysis', (analysis) => {
+            if (analysis.recentTrades) {
+                updateRecentTradesTable(analysis.recentTrades);
+            }
+        });
+        
+        socket.on('tradingStateUpdate', (state) => {
+            updateGridVisualization({
+                currentPrice: state.currentPrice,
+                gridLevels: state.gridLevels
+            });
+            updateActiveOrdersTable(state.activeOrders);
+        });
+        
+        socket.on('metricsUpdate', updatePerformanceMetrics);
+        socket.on('tradesUpdate', updateRecentTradesTable);
+
+        // Button event handlers
+        document.getElementById('startButton').addEventListener('click', () => {
+            fetch('/api/bot/control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'start',
+                    interval: 60000 // 1 minute
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Trading bot started successfully');
+                } else {
+                    alert('Failed to start trading bot: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        });
+
+        document.getElementById('stopButton').addEventListener('click', () => {
+            fetch('/api/bot/control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'stop'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Trading bot stopped successfully');
+                } else {
+                    alert('Failed to stop trading bot: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        });
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', () => {
+            initializePerformanceChart();
+            
+            // Load initial data
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(updateBotStatus)
+                .catch(error => console.error('Failed to load bot status:', error));
+            
+            fetch('/api/grid')
+                .then(response => response.json())
+                .then(updateGridVisualization)
+                .catch(error => console.error('Failed to load grid data:', error));
+            
+            fetch('/api/metrics')
+                .then(response => response.json())
+                .then(updatePerformanceMetrics)
+                .catch(error => console.error('Failed to load metrics:', error));
+            
+            fetch('/api/trades')
+                .then(response => response.json())
+                .then(analysis => {
+                    if (analysis.recentTrades) {
+                        updateRecentTradesTable(analysis.recentTrades);
+                    }
+                })
+                .catch(error => console.error('Failed to load trades:', error));
+        });
+    </script>
+</body>
+</html>
